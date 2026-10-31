@@ -34,6 +34,7 @@ namespace MaxOS::processes {
 			resources::GlobalResourceRegistry m_global_resource_registry = { };
 			resources::ResourceRegistry<SharedMemory> m_shared_memory_registry;
 			resources::ResourceRegistry<SharedMessageEndpoint> m_shared_messages_registry;
+			resources::ResourceRegistry<hardwarecommunication::UserInterrupt> m_user_interrupts_registry;
 			resources::ThreadResourceRegistry m_thread_resource_registry;
 			resources::ProcessResourceRegistry m_process_resource_registry;
 

@@ -19,6 +19,7 @@
 #include <system/gdt.h>
 #include <system/cpu.h>
 #include <hardwarecommunication/apic.h>
+#include <processes/resources/resource.h>
 
 
 namespace MaxOS::hardwarecommunication {
@@ -53,6 +54,24 @@ namespace MaxOS::hardwarecommunication {
 			virtual system::cpu_status_t* handle_interrupt(system::cpu_status_t* status);
 
 	};
+
+    class UserInterrupt : public InterruptHandler, public processes::resources::Resource {
+
+        private:
+            volatile bool m_pending = false;
+            uint8_t m_irq;
+
+            void mask(bool masked);
+
+        public:
+            UserInterrupt(const string& name, size_t irq, processes::resources::resource_type_t type);
+            ~UserInterrupt();
+
+            void handle_interrupt() final;
+
+            int read(void* buffer, size_t size, size_t flags) final;
+            int write(const void* buffer, size_t size, size_t flags) final;
+    };
 
     /**
     * @class ExceptionHandler

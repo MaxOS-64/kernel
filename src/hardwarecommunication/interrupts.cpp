@@ -8,11 +8,14 @@
 
 #include <hardwarecommunication/interrupts.h>
 #include <common/logger.h>
+#include <processes/scheduler.h>
 
 using namespace MaxOS;
 using namespace MaxOS::common;
 using namespace MaxOS::hardwarecommunication;
 using namespace MaxOS::system;
+using namespace MaxOS::processes;
+using namespace MaxOS::processes::resources;
 
 /**
  * @brief Creates a new interrupt handler and registers it with the interrupt manager
@@ -82,6 +85,57 @@ cpu_status_t* InterruptHandler::handle_interrupt(cpu_status_t* status) {
 
 	// Return the default status
 	return status;
+}
+
+UserInterrupt::UserInterrupt(const string& name, size_t irq, resource_type_t type)
+: InterruptHandler(HARDWARE_INTERRUPT_OFFSET + (uint8_t)irq, (uint8_t)irq, (uint8_t)irq),
+  Resource(name, 0, type),
+  m_irq(irq)
+{
+
+}
+
+UserInterrupt::~UserInterrupt() {
+
+    // Prevent future interrupts that wont be handled
+    mask(true);
+}
+
+void UserInterrupt::handle_interrupt() {
+
+    // Stop future interrupts until it is handled (@todo just queue them?)
+    mask(true);
+    m_pending = true;
+}
+
+void UserInterrupt::mask(bool masked) {
+
+    InterruptManager::active_interrupt_manager()->active_apic()->io_apic()->set_redirect_mask(m_irq, masked);
+}
+
+int UserInterrupt::read(void* buffer, size_t size, size_t flags) {
+
+    // Wait for a interrupt
+    while (!__atomic_exchange_n(&m_pending, false, __ATOMIC_SEQ_CST)) {
+
+        // Non blocking read
+        if (flags)
+            return 0;
+
+        GlobalScheduler::current_thread()->yield();
+    }
+
+    // An interrupt happened
+    return 1;
+}
+
+int UserInterrupt::write(const void* buffer, size_t size, size_t flags) {
+
+    // Driver is done, allow the next interrupt
+    mask(false);
+    m_pending = false;
+
+    return 0;
 }
 
 /**
